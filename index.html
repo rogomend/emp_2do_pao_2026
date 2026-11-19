@@ -1,0 +1,1373 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Riego Inteligente | Prototipo MVP</title>
+    <!-- Tailwind CSS vía CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Plus Jakarta Sans & Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Plus Jakarta Sans', 'sans-serif'],
+                    },
+                    colors: {
+                        cream: '#FAF9F6',
+                        forest: {
+                            DEFAULT: '#114B3A',
+                            light: '#1B6B53',
+                            dark: '#0A3226',
+                            soft: '#E7F1EE'
+                        },
+                        sage: {
+                            DEFAULT: '#68A387',
+                            light: '#D9EAE2',
+                            muted: '#8DA89B'
+                        },
+                        coral: {
+                            DEFAULT: '#E06D53',
+                            light: '#FCECE8',
+                            dark: '#C45339'
+                        },
+                        sand: '#F2EFE9'
+                    },
+                    boxShadow: {
+                        'soft': '0 10px 30px -5px rgba(17, 75, 58, 0.06)',
+                        'card': '0 4px 20px -2px rgba(17, 75, 58, 0.05)',
+                        'glow': '0 0 20px rgba(104, 163, 135, 0.35)'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #FAF9F6;
+            color: #1A2421;
+            -webkit-tap-highlight-color: transparent;
+        }
+        h1, h2, h3, h4, .font-display {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        /* Gradiente sutil estilo FYTA en la cabecera */
+        .fyta-header-gradient {
+            background: linear-gradient(135deg, #FCE7D8 0%, #F7DFD4 35%, #E4EFE9 75%, #FAF9F6 100%);
+        }
+        /* Animación de agua subiendo */
+        @keyframes pulseWater {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.04); }
+        }
+        .watering-active {
+            animation: pulseWater 1s infinite ease-in-out;
+        }
+        /* Ocultar scrollbar en pestañas móviles */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-forest selection:text-white">
+
+    <!-- BARRA DE NAVEGACIÓN SUPERIOR -->
+    <header class="sticky top-0 z-30 bg-cream/90 backdrop-blur-md border-b border-stone-200/70">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+            <!-- Logo / Marca -->
+            <button onclick="switchMainView('dashboard')" class="flex items-center gap-2.5 text-left group focus:outline-none">
+                <div class="w-9 h-9 rounded-xl bg-forest text-white flex items-center justify-center shadow-sm group-hover:bg-forest-light transition-colors">
+                    <i data-lucide="sprout" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <span class="font-display font-bold text-base sm:text-lg text-forest tracking-tight block leading-none">RiegoSmart</span>
+                    <span class="text-[11px] font-medium text-sage-muted tracking-wide uppercase">Prototipo MVP</span>
+                </div>
+            </button>
+
+            <!-- Navegación Desktop & Tablet -->
+            <nav class="flex items-center gap-1.5 sm:gap-3 bg-sand/80 p-1 rounded-2xl border border-stone-200/60">
+                <button id="nav-dashboard" onclick="switchMainView('dashboard')" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all bg-white text-forest shadow-sm flex items-center gap-1.5">
+                    <i data-lucide="layout-grid" class="w-4 h-4"></i>
+                    <span>Mis Cultivos</span>
+                </button>
+                <button id="nav-comparison" onclick="switchMainView('comparison')" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-stone-600 hover:text-forest transition-all flex items-center gap-1.5">
+                    <i data-lucide="sparkles" class="w-4 h-4 text-sage"></i>
+                    <span>Comparativa & Beneficios</span>
+                </button>
+            </nav>
+
+            <!-- Botón de Feedback Rápido -->
+            <button onclick="openFeedbackModal()" class="hidden md:flex items-center gap-2 px-4 py-2 rounded-xl bg-forest-soft text-forest hover:bg-forest hover:text-white font-semibold text-xs transition-all border border-forest/15">
+                <i data-lucide="message-square-heart" class="w-4 h-4"></i>
+                <span>Validar Idea</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- CONTENEDOR PRINCIPAL -->
+    <main class="flex-1">
+        
+        <!-- ========================================== -->
+        <!-- VISTA 1: DASHBOARD 'MIS CULTIVOS'          -->
+        <!-- ========================================== -->
+        <section id="view-dashboard" class="pb-24">
+            <!-- Cabecera Estilo FYTA con saludo y métricas rápidas -->
+            <div class="fyta-header-gradient border-b border-stone-200/50 pt-6 pb-8 px-4 sm:px-6">
+                <div class="max-w-6xl mx-auto">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                        <div>
+                            <p class="text-xs sm:text-sm font-medium text-stone-600 flex items-center gap-1.5 mb-1">
+                                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                Sensores sincronizados en tiempo real
+                            </p>
+                            <h1 class="text-2xl sm:text-3xl font-extrabold text-forest tracking-tight">Buenos días, Cultivador</h1>
+                        </div>
+                        <button onclick="openAddCropModal()" class="self-start sm:self-auto inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-forest hover:bg-forest-light text-white font-semibold text-sm shadow-soft transition-all active:scale-95">
+                            <i data-lucide="plus" class="w-4 h-4"></i>
+                            <span>Agregar nuevo cultivo</span>
+                        </button>
+                    </div>
+
+                    <!-- Tarjetas de Resumen Rápido (Pills estilo FYTA) -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
+                        <!-- Cultivos activos -->
+                        <div class="bg-white/85 backdrop-blur-sm rounded-2xl p-4 border border-white shadow-card flex items-center gap-3.5">
+                            <div class="w-11 h-11 rounded-2xl bg-forest-soft text-forest flex items-center justify-center shrink-0">
+                                <i data-lucide="flower-2" class="w-5 h-5"></i>
+                            </div>
+                            <div>
+                                <p class="text-xs font-medium text-stone-500">Cultivos activos</p>
+                                <p id="stat-total-crops" class="text-xl font-bold text-forest font-display">4 plantas</p>
+                            </div>
+                        </div>
+
+                        <!-- Requieren atención -->
+                        <div class="bg-white/85 backdrop-blur-sm rounded-2xl p-4 border border-white shadow-card flex items-center gap-3.5">
+                            <div id="stat-urgent-icon-bg" class="w-11 h-11 rounded-2xl bg-coral-light text-coral flex items-center justify-center shrink-0 transition-colors">
+                                <i data-lucide="droplets" class="w-5 h-5"></i>
+                            </div>
+                            <div>
+                                <p class="text-xs font-medium text-stone-500">Requieren atención</p>
+                                <p id="stat-urgent-crops" class="text-xl font-bold text-coral font-display">2 urgentes</p>
+                            </div>
+                        </div>
+
+                        <!-- Ahorro de tiempo -->
+                        <div class="bg-white/85 backdrop-blur-sm rounded-2xl p-4 border border-white shadow-card flex items-center gap-3.5">
+                            <div class="w-11 h-11 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                                <i data-lucide="clock" class="w-5 h-5"></i>
+                            </div>
+                            <div>
+                                <p class="text-xs font-medium text-stone-500">Ahorro semanal</p>
+                                <p class="text-xl font-bold text-stone-800 font-display">70% tiempo</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Banner Destacado de Propuesta de Valor (Inspirado en FYTA Hub Card + PPT) -->
+                    <div class="relative overflow-hidden rounded-3xl bg-forest text-white p-5 sm:p-7 shadow-soft">
+                        <!-- Decoración orgánica de fondo -->
+                        <div class="absolute -right-10 -bottom-16 w-64 h-64 rounded-full bg-forest-light/50 blur-2xl pointer-events-none"></div>
+                        <div class="absolute right-6 top-6 opacity-10 pointer-events-none hidden sm:block">
+                            <i data-lucide="sprout" class="w-32 h-32"></i>
+                        </div>
+
+                        <div class="relative z-10 max-w-2xl">
+                            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 text-sage-light text-xs font-semibold mb-3">
+                                <i data-lucide="cpu" class="w-3.5 h-3.5"></i>
+                                Automatización real + Acompañamiento práctico
+                            </span>
+                            <h2 class="text-lg sm:text-2xl font-bold leading-snug mb-2">
+                                Integra sensores de humedad con guía digital para superar alternativas manuales
+                            </h2>
+                            <p class="text-xs sm:text-sm text-emerald-100/90 mb-5 leading-relaxed">
+                                Cuidemos cada cultivo, cada pequeño esfuerzo cuenta. Olvídate de adivinar cuándo regar o perder tus plantas por exceso o falta de agua.
+                            </p>
+                            <div class="flex flex-wrap items-center gap-3">
+                                <button onclick="switchMainView('comparison')" class="px-4 py-2.5 rounded-xl bg-white text-forest hover:bg-cream font-bold text-xs sm:text-sm transition-all shadow-sm">
+                                    Ver comparativa de soluciones
+                                </button>
+                                <button onclick="simulateDrySoil()" class="px-4 py-2.5 rounded-xl bg-forest-light/80 hover:bg-forest-light text-white border border-white/20 font-medium text-xs sm:text-sm transition-all flex items-center gap-1.5" title="Simula que pasa el tiempo y baja la humedad">
+                                    <i data-lucide="sun" class="w-4 h-4 text-amber-300"></i>
+                                    <span>Simular día caluroso (-15% humedad)</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECCIÓN DE RITUALES Y TARJETAS DE CULTIVOS -->
+            <div class="max-w-6xl mx-auto px-4 sm:px-6 pt-8">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                    <div>
+                        <h3 class="text-xl font-bold text-forest">Rituales y Estado de Cultivos</h3>
+                        <p class="text-xs sm:text-sm text-stone-500">Haz clic en cualquier cultivo para ver gráficas en vivo y su guía paso a paso</p>
+                    </div>
+
+                    <!-- Filtros Interactivos -->
+                    <div id="filter-bar" class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+                        <button onclick="setFilter('all')" data-filter="all" class="filter-btn px-4 py-2 rounded-full text-xs sm:text-sm font-semibold bg-forest text-white shadow-sm transition-all whitespace-nowrap">
+                            Todos (<span id="count-all">4</span>)
+                        </button>
+                        <button onclick="setFilter('urgent')" data-filter="urgent" class="filter-btn px-4 py-2 rounded-full text-xs sm:text-sm font-semibold bg-white text-stone-600 hover:bg-sand border border-stone-200/80 transition-all whitespace-nowrap">
+                            Riego urgente (<span id="count-urgent">2</span>)
+                        </button>
+                        <button onclick="setFilter('optimal')" data-filter="optimal" class="filter-btn px-4 py-2 rounded-full text-xs sm:text-sm font-semibold bg-white text-stone-600 hover:bg-sand border border-stone-200/80 transition-all whitespace-nowrap">
+                            Óptimos (<span id="count-optimal">2</span>)
+                        </button>
+                        <button onclick="setFilter('guide')" data-filter="guide" class="filter-btn px-4 py-2 rounded-full text-xs sm:text-sm font-semibold bg-white text-stone-600 hover:bg-sand border border-stone-200/80 transition-all whitespace-nowrap flex items-center gap-1.5">
+                            <i data-lucide="book-open" class="w-3.5 h-3.5 text-forest"></i>
+                            <span>Guía digital</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Grid de Tarjetas de Cultivos -->
+                <div id="crops-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-5">
+                    <!-- Las tarjetas se renderizan dinámicamente con JS -->
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================== -->
+        <!-- VISTA 2: COMPARATIVA & BENEFICIOS (PPT)    -->
+        <!-- ========================================== -->
+        <section id="view-comparison" class="hidden pb-24 pt-8 px-4 sm:px-6">
+            <div class="max-w-5xl mx-auto">
+                <!-- Encabezado -->
+                <div class="text-center max-w-2xl mx-auto mb-10">
+                    <span class="inline-block px-3.5 py-1 rounded-full bg-forest-soft text-forest text-xs font-bold uppercase tracking-wider mb-3">
+                        Propuesta de Valor
+                    </span>
+                    <h1 class="text-2xl sm:text-4xl font-extrabold text-forest tracking-tight mb-3">
+                        ¿Por qué destaca nuestro Sistema de Riego Inteligente?
+                    </h1>
+                    <p class="text-sm sm:text-base text-stone-600">
+                        “Integramos sensores de humedad con guía digital para superar alternativas 100% manuales.”
+                    </p>
+                </div>
+
+                <!-- 4 Argumentos Prácticos (Motivos de adopción de la PPT) -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
+                    <div class="bg-white rounded-3xl p-5 border border-stone-200/70 shadow-card hover:shadow-soft transition-all">
+                        <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mb-4">
+                            <i data-lucide="timer" class="w-6 h-6"></i>
+                        </div>
+                        <span class="text-xs font-bold text-amber-600 uppercase tracking-wide">Eficiencia</span>
+                        <h3 class="text-lg font-bold text-forest mt-1 mb-1.5">Ahorro de tiempo</h3>
+                        <p class="text-sm text-stone-600 leading-relaxed">
+                            <strong>70% menos tiempo</strong> de riego semanal gracias a la activación automatizada según humedad real.
+                        </p>
+                    </div>
+
+                    <div class="bg-white rounded-3xl p-5 border border-stone-200/70 shadow-card hover:shadow-soft transition-all">
+                        <div class="w-12 h-12 rounded-2xl bg-forest-soft text-forest flex items-center justify-center mb-4">
+                            <i data-lucide="shield-check" class="w-6 h-6"></i>
+                        </div>
+                        <span class="text-xs font-bold text-forest uppercase tracking-wide">Seguridad</span>
+                        <h3 class="text-lg font-bold text-forest mt-1 mb-1.5">Protección del cultivo</h3>
+                        <p class="text-sm text-stone-600 leading-relaxed">
+                            Mantiene la <strong>humedad óptima</strong> exacta para cada especie sin riesgo de pérdida por sequía o ahogamiento.
+                        </p>
+                    </div>
+
+                    <div class="bg-white rounded-3xl p-5 border border-stone-200/70 shadow-card hover:shadow-soft transition-all">
+                        <div class="w-12 h-12 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center mb-4">
+                            <i data-lucide="sparkles" class="w-6 h-6"></i>
+                        </div>
+                        <span class="text-xs font-bold text-sky-600 uppercase tracking-wide">Simplicidad</span>
+                        <h3 class="text-lg font-bold text-forest mt-1 mb-1.5">Cero frustración</h3>
+                        <p class="text-sm text-stone-600 leading-relaxed">
+                            <strong>Guía digital clara</strong> paso a paso pensada para personas sin experiencia previa en agricultura.
+                        </p>
+                    </div>
+
+                    <div class="bg-white rounded-3xl p-5 border border-stone-200/70 shadow-card hover:shadow-soft transition-all">
+                        <div class="w-12 h-12 rounded-2xl bg-coral-light text-coral flex items-center justify-center mb-4">
+                            <i data-lucide="salad" class="w-6 h-6"></i>
+                        </div>
+                        <span class="text-xs font-bold text-coral uppercase tracking-wide">Bienestar</span>
+                        <h3 class="text-lg font-bold text-forest mt-1 mb-1.5">Alimentos frescos</h3>
+                        <p class="text-sm text-stone-600 leading-relaxed">
+                            <strong>Autocultivo seguro</strong> en casa con control total sobre la calidad y frescura de tus cosechas.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Tabla Comparativa de Soluciones (Fiel a la Diapositiva 1) -->
+                <div class="bg-white rounded-3xl border border-stone-200/80 shadow-soft overflow-hidden mb-10">
+                    <div class="p-6 sm:p-8 border-b border-stone-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <h2 class="text-xl sm:text-2xl font-bold text-forest">Comparativa de Soluciones</h2>
+                            <p class="text-sm text-stone-500 mt-1">Cómo nos diferenciamos frente a métodos tradicionales del mercado</p>
+                        </div>
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-forest-soft text-forest text-xs font-bold">
+                            <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+                            Automatización + Guía
+                        </span>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-sand/60 text-stone-600 text-xs uppercase tracking-wider border-b border-stone-200/70">
+                                    <th class="py-4 px-6 font-bold">Opción</th>
+                                    <th class="py-4 px-6 font-bold">Nivel de Automatización</th>
+                                    <th class="py-4 px-6 font-bold">Limitación Principal</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-stone-100 text-sm">
+                                <!-- Nuestra Solución -->
+                                <tr class="bg-forest-soft/50">
+                                    <td class="py-5 px-6">
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-9 h-9 rounded-xl bg-forest text-white flex items-center justify-center shrink-0">
+                                                <i data-lucide="sprout" class="w-5 h-5"></i>
+                                            </div>
+                                            <div>
+                                                <span class="font-bold text-forest block text-base">Nuestra Solución</span>
+                                                <span class="text-xs text-forest-light font-medium">Sensores + Electroválvula + App</span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="py-5 px-6">
+                                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-forest text-white text-xs font-semibold">
+                                            <i data-lucide="zap" class="w-3.5 h-3.5"></i>
+                                            Alta (sensores + guía)
+                                        </span>
+                                    </td>
+                                    <td class="py-5 px-6 text-stone-700 font-medium">
+                                        Inversión inicial (se amortiza rápido con ahorro de agua y plantas)
+                                    </td>
+                                </tr>
+
+                                <!-- Huerto modular -->
+                                <tr class="hover:bg-stone-50/80 transition-colors">
+                                    <td class="py-4 px-6 font-semibold text-stone-800">Huerto modular</td>
+                                    <td class="py-4 px-6">
+                                        <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-stone-100 text-stone-600 text-xs font-medium">
+                                            Ninguna (100% manual)
+                                        </span>
+                                    </td>
+                                    <td class="py-4 px-6 text-stone-600">Ocupa mucho espacio y depende de tu memoria</td>
+                                </tr>
+
+                                <!-- App / Calendario -->
+                                <tr class="hover:bg-stone-50/80 transition-colors">
+                                    <td class="py-4 px-6 font-semibold text-stone-800">App / Calendario</td>
+                                    <td class="py-4 px-6">
+                                        <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-medium">
+                                            Solo alertas
+                                        </span>
+                                    </td>
+                                    <td class="py-4 px-6 text-stone-600">Requiere presencia física y no mide el suelo real</td>
+                                </tr>
+
+                                <!-- Goteo casero -->
+                                <tr class="hover:bg-stone-50/80 transition-colors">
+                                    <td class="py-4 px-6 font-semibold text-stone-800">Goteo casero</td>
+                                    <td class="py-4 px-6">
+                                        <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-medium">
+                                            Flujo constante
+                                        </span>
+                                    </td>
+                                    <td class="py-4 px-6 text-stone-600">Sin medir humedad (riesgo de pudrir raíces)</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Sección de Resultados de Validación (Respuestas guardadas en localStorage) -->
+                <div class="bg-sand/70 rounded-3xl p-6 sm:p-8 border border-stone-200/80">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                        <div>
+                            <h3 class="text-lg font-bold text-forest flex items-center gap-2">
+                                <i data-lucide="clipboard-check" class="w-5 h-5 text-forest"></i>
+                                Bitácora de Validación con Usuarios
+                            </h3>
+                            <p class="text-xs sm:text-sm text-stone-600">Comentarios registrados durante las pruebas de este prototipo (guardados localmente)</p>
+                        </div>
+                        <button onclick="openFeedbackModal()" class="px-4 py-2.5 rounded-xl bg-forest text-white hover:bg-forest-light text-xs sm:text-sm font-semibold transition-all shadow-sm self-start sm:self-auto">
+                            + Registrar nueva opinión
+                        </button>
+                    </div>
+                    <div id="feedback-list" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Feedback items rendered here -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- BOTÓN FLOTANTE DE VALIDACIÓN (Siempre accesible en móvil y desktop) -->
+    <button onclick="openFeedbackModal()" class="fixed bottom-5 right-5 z-40 flex items-center gap-2.5 px-4 py-3 rounded-full bg-forest hover:bg-forest-light text-white font-semibold text-xs sm:text-sm shadow-lg hover:shadow-xl transition-all active:scale-95 border border-white/15">
+        <i data-lucide="message-square-plus" class="w-4 h-4 text-sage-light"></i>
+        <span>Dejar Feedback de Validación</span>
+    </button>
+
+    <!-- ========================================================== -->
+    <!-- MODAL 1: DETALLE DEL CULTIVO Y GUÍA DIGITAL PASO A PASO    -->
+    <!-- ========================================================== -->
+    <div id="crop-detail-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-3 sm:p-6 bg-stone-900/50 backdrop-blur-sm">
+        <div class="bg-cream w-full max-w-2xl max-h-[90vh] rounded-3xl shadow-2xl border border-white overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
+            <!-- Modal Header -->
+            <div class="px-5 sm:px-7 py-4 bg-white border-b border-stone-200/70 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <span id="detail-emoji" class="text-2xl sm:text-3xl bg-sand w-11 h-11 rounded-2xl flex items-center justify-center">🍅</span>
+                    <div>
+                        <h3 id="detail-name" class="font-display font-bold text-lg sm:text-xl text-forest leading-tight">Tomates Cherry</h3>
+                        <p id="detail-species" class="text-xs text-stone-500">Solanum lycopersicum • Sensor #01</p>
+                    </div>
+                </div>
+                <button onclick="closeCropDetailModal()" class="w-9 h-9 rounded-full bg-sand hover:bg-stone-200/80 text-stone-600 flex items-center justify-center transition-colors">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- Pestañas Internas del Modal (Estilo FYTA: Resumen en vivo / Guía Digital) -->
+            <div class="px-5 sm:px-7 pt-3 bg-white border-b border-stone-200/70 flex gap-6">
+                <button id="tab-btn-live" onclick="switchDetailTab('live')" class="pb-3 text-sm font-bold border-b-2 border-forest text-forest transition-all">
+                    Resumen en vivo
+                </button>
+                <button id="tab-btn-guide" onclick="switchDetailTab('guide')" class="pb-3 text-sm font-semibold border-b-2 border-transparent text-stone-500 hover:text-forest transition-all flex items-center gap-1.5">
+                    <i data-lucide="book-open-check" class="w-4 h-4"></i>
+                    <span>Guía Digital Paso a Paso</span>
+                </button>
+            </div>
+
+            <!-- Cuerpo Scrollable del Modal -->
+            <div class="p-5 sm:p-7 overflow-y-auto flex-1 space-y-6">
+                
+                <!-- PESTAÑA A: RESUMEN EN VIVO -->
+                <div id="detail-tab-live" class="space-y-6">
+                    <!-- Mascota / Estado Amigable estilo FYTA -->
+                    <div id="detail-status-banner" class="p-4 rounded-2xl bg-coral-light/80 border border-coral/20 flex items-center gap-4">
+                        <div id="detail-status-icon" class="w-12 h-12 rounded-2xl bg-coral text-white flex items-center justify-center shrink-0">
+                            <i data-lucide="droplet" class="w-6 h-6"></i>
+                        </div>
+                        <div class="flex-1">
+                            <span id="detail-badge" class="text-[11px] font-bold uppercase tracking-wider text-coral">Riego urgente</span>
+                            <p id="detail-message" class="text-sm font-semibold text-stone-800 mt-0.5">
+                                Tomates Cherry está saludable, pero necesita agua pronto para mantener su fruto.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- 3 Indicadores Circulares estilo FYTA -->
+                    <div class="grid grid-cols-3 gap-3">
+                        <div class="bg-white p-3.5 rounded-2xl border border-stone-200/60 text-center shadow-sm">
+                            <div class="w-8 h-8 rounded-full bg-sky-50 text-sky-600 mx-auto flex items-center justify-center mb-1.5">
+                                <i data-lucide="droplets" class="w-4 h-4"></i>
+                            </div>
+                            <p id="detail-moisture-val" class="text-xl font-extrabold text-stone-800 font-display">42%</p>
+                            <p class="text-[11px] text-stone-500 font-medium">Humedad suelo</p>
+                            <p id="detail-target-val" class="text-[10px] text-forest font-semibold mt-0.5">Ideal: 65–80%</p>
+                        </div>
+
+                        <div class="bg-white p-3.5 rounded-2xl border border-stone-200/60 text-center shadow-sm">
+                            <div class="w-8 h-8 rounded-full bg-amber-50 text-amber-500 mx-auto flex items-center justify-center mb-1.5">
+                                <i data-lucide="sun" class="w-4 h-4"></i>
+                            </div>
+                            <p id="detail-light-val" class="text-xl font-extrabold text-stone-800 font-display">88%</p>
+                            <p class="text-[11px] text-stone-500 font-medium">Luz ambiente</p>
+                            <p class="text-[10px] text-emerald-600 font-semibold mt-0.5">Óptima hoy</p>
+                        </div>
+
+                        <div class="bg-white p-3.5 rounded-2xl border border-stone-200/60 text-center shadow-sm">
+                            <div class="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 mx-auto flex items-center justify-center mb-1.5">
+                                <i data-lucide="sprout" class="w-4 h-4"></i>
+                            </div>
+                            <p id="detail-soil-val" class="text-xl font-extrabold text-stone-800 font-display">92%</p>
+                            <p class="text-[11px] text-stone-500 font-medium">Salud sustrato</p>
+                            <p class="text-[10px] text-emerald-600 font-semibold mt-0.5">Nutrientes OK</p>
+                        </div>
+                    </div>
+
+                    <!-- Gráfica de Evolución de Humedad (SVG dinámico estilo FYTA) -->
+                    <div class="bg-white p-5 rounded-3xl border border-stone-200/70 shadow-sm">
+                        <div class="flex items-center justify-between mb-3">
+                            <div>
+                                <h4 class="text-sm font-bold text-forest">Evolución de Humedad (Últimas 12h)</h4>
+                                <p class="text-xs text-stone-400">Lectura continua del sensor capacitivo</p>
+                            </div>
+                            <span id="detail-chart-current" class="text-sm font-extrabold text-forest bg-forest-soft px-2.5 py-1 rounded-lg">42%</span>
+                        </div>
+                        <div class="w-full h-32 pt-2">
+                            <svg id="moisture-chart-svg" viewBox="0 0 320 90" class="w-full h-full overflow-visible">
+                                <!-- Se genera dinámicamente -->
+                            </svg>
+                        </div>
+                        <div class="flex justify-between text-[10px] text-stone-400 mt-1 font-medium">
+                            <span>Hace 12h</span>
+                            <span>Hace 8h</span>
+                            <span>Hace 4h</span>
+                            <span>Ahora</span>
+                        </div>
+                    </div>
+
+                    <!-- Controles de Automatización y Riego Manual -->
+                    <div class="bg-white p-5 rounded-3xl border border-stone-200/70 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <div class="flex items-center gap-3 w-full sm:w-auto">
+                            <button id="auto-mode-toggle" onclick="toggleAutoMode()" class="w-12 h-7 rounded-full bg-forest p-1 transition-colors flex items-center cursor-pointer">
+                                <span id="auto-mode-knob" class="w-5 h-5 rounded-full bg-white shadow transform translate-x-5 transition-transform"></span>
+                            </button>
+                            <div>
+                                <p class="text-sm font-bold text-stone-800">Riego Automático Inteligente</p>
+                                <p id="auto-mode-desc" class="text-xs text-stone-500">Activado: regará solo al bajar del umbral</p>
+                            </div>
+                        </div>
+
+                        <button id="detail-water-btn" onclick="triggerWateringFromModal()" class="w-full sm:w-auto px-5 py-3 rounded-2xl bg-forest hover:bg-forest-light text-white font-bold text-sm shadow-soft transition-all flex items-center justify-center gap-2">
+                            <i data-lucide="droplets" class="w-4 h-4"></i>
+                            <span>Activar Riego Ahora</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- PESTAÑA B: GUÍA DIGITAL PASO A PASO ('Cero Frustración') -->
+                <div id="detail-tab-guide" class="hidden space-y-5">
+                    <div class="p-4 rounded-2xl bg-forest-soft border border-forest/15 flex items-start gap-3.5">
+                        <div class="w-10 h-10 rounded-xl bg-forest text-white flex items-center justify-center shrink-0 mt-0.5">
+                            <i data-lucide="sparkles" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-bold text-forest">Acompañamiento "Cero Frustración"</h4>
+                            <p class="text-xs text-stone-600 mt-1 leading-relaxed">
+                                No necesitas experiencia previa. Nuestro sistema ajusta el riego por ti, y aquí tienes los 3 pasos clave para que tu cultivo prospere sin esfuerzo.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div id="guide-steps-container" class="space-y-3.5">
+                        <!-- Pasos dinámicos según el cultivo -->
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================== -->
+    <!-- MODAL 2: AGREGAR NUEVO CULTIVO                             -->
+    <!-- ========================================================== -->
+    <div id="add-crop-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-stone-900/50 backdrop-blur-sm">
+        <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl border border-stone-100 overflow-hidden">
+            <div class="px-6 py-4 border-b border-stone-100 flex items-center justify-between">
+                <h3 class="font-display font-bold text-lg text-forest">Agregar nuevo cultivo</h3>
+                <button onclick="closeAddCropModal()" class="w-8 h-8 rounded-full bg-sand hover:bg-stone-200 text-stone-600 flex items-center justify-center">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <form id="add-crop-form" onsubmit="handleAddCrop(event)" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-stone-700 uppercase tracking-wide mb-1.5">Nombre de tu planta o cultivo</label>
+                    <input type="text" id="new-crop-name" required placeholder="Ej. Fresas del Balcón, Cilantro, Menta..." class="w-full px-4 py-2.5 rounded-xl bg-cream border border-stone-200 focus:border-forest focus:ring-2 focus:ring-forest/20 outline-none text-sm">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-stone-700 uppercase tracking-wide mb-1.5">Tipo de cultivo</label>
+                    <select id="new-crop-type" class="w-full px-4 py-2.5 rounded-xl bg-cream border border-stone-200 focus:border-forest focus:ring-2 focus:ring-forest/20 outline-none text-sm">
+                        <option value="Hortaliza de fruto|🍅">🍅 Hortaliza de fruto (Tomate, Pimiento, Fresa)</option>
+                        <option value="Hoja verde|🥬">🥬 Hoja verde (Lechuga, Espinaca, Acelga)</option>
+                        <option value="Hierba aromática|🌿">🌿 Hierba aromática (Albahaca, Menta, Cilantro)</option>
+                        <option value="Planta de interior|🪴">🪴 Planta ornamental / interior</option>
+                    </select>
+                </div>
+
+                <div>
+                    <div class="flex justify-between items-center mb-1.5">
+                        <label class="text-xs font-bold text-stone-700 uppercase tracking-wide">Humedad objetivo del sensor</label>
+                        <span id="target-slider-val" class="text-sm font-extrabold text-forest bg-forest-soft px-2.5 py-0.5 rounded-lg">70%</span>
+                    </div>
+                    <input type="range" id="new-crop-target" min="40" max="90" value="70" oninput="document.getElementById('target-slider-val').textContent = this.value + '%'" class="w-full accent-forest cursor-pointer">
+                    <div class="flex justify-between text-[11px] text-stone-400 mt-1">
+                        <span>40% (Seco)</span>
+                        <span>65% (Moderado)</span>
+                        <span>90% (Húmedo)</span>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-stone-700 uppercase tracking-wide mb-1.5">Estado inicial simulado</label>
+                    <div class="grid grid-cols-2 gap-2.5">
+                        <label class="cursor-pointer">
+                            <input type="radio" name="initialState" value="urgent" checked class="peer sr-only">
+                            <div class="p-3 rounded-xl border border-stone-200 peer-checked:border-coral peer-checked:bg-coral-light/50 text-center transition-all">
+                                <span class="text-xs font-bold text-coral block">Necesita riego (38%)</span>
+                                <span class="text-[10px] text-stone-500">Probar alerta y riego</span>
+                            </div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="initialState" value="optimal" class="peer sr-only">
+                            <div class="p-3 rounded-xl border border-stone-200 peer-checked:border-forest peer-checked:bg-forest-soft/50 text-center transition-all">
+                                <span class="text-xs font-bold text-forest block">Humedad óptima (74%)</span>
+                                <span class="text-[10px] text-stone-500">Recién regado</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="pt-2 flex gap-3">
+                    <button type="button" onclick="closeAddCropModal()" class="flex-1 py-2.5 rounded-xl bg-sand hover:bg-stone-200 text-stone-700 font-semibold text-sm transition-colors">
+                        Cancelar
+                    </button>
+                    <button type="submit" class="flex-1 py-2.5 rounded-xl bg-forest hover:bg-forest-light text-white font-bold text-sm shadow-soft transition-colors">
+                        Vincular Sensor
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================================== -->
+    <!-- MODAL 3: FEEDBACK DE VALIDACIÓN CON USUARIOS               -->
+    <!-- ========================================================== -->
+    <div id="feedback-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-stone-900/50 backdrop-blur-sm">
+        <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl border border-stone-100 overflow-hidden">
+            <div class="px-6 py-4 bg-forest text-white flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="message-square-heart" class="w-5 h-5 text-sage-light"></i>
+                    <h3 class="font-display font-bold text-base sm:text-lg">Validación del Prototipo</h3>
+                </div>
+                <button onclick="closeFeedbackModal()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <form onsubmit="handleFeedbackSubmit(event)" class="p-6 space-y-4">
+                <p class="text-xs sm:text-sm text-stone-600 leading-relaxed">
+                    Tu opinión nos ayuda a validar si este sistema resuelve el cuidado de tus plantas o cultivos. ¿Qué tan útil te parece?
+                </p>
+
+                <!-- Calificación por estrellas / botones -->
+                <div>
+                    <label class="block text-xs font-bold text-stone-700 uppercase tracking-wide mb-2">Nivel de utilidad percibido</label>
+                    <div class="grid grid-cols-5 gap-2" id="rating-buttons">
+                        <button type="button" onclick="selectRating(1)" data-rate="1" class="rate-btn py-2.5 rounded-xl border border-stone-200 text-sm font-bold text-stone-600 hover:border-forest transition-all">1</button>
+                        <button type="button" onclick="selectRating(2)" data-rate="2" class="rate-btn py-2.5 rounded-xl border border-stone-200 text-sm font-bold text-stone-600 hover:border-forest transition-all">2</button>
+                        <button type="button" onclick="selectRating(3)" data-rate="3" class="rate-btn py-2.5 rounded-xl border border-stone-200 text-sm font-bold text-stone-600 hover:border-forest transition-all">3</button>
+                        <button type="button" onclick="selectRating(4)" data-rate="4" class="rate-btn py-2.5 rounded-xl border border-stone-200 text-sm font-bold text-stone-600 hover:border-forest transition-all">4</button>
+                        <button type="button" onclick="selectRating(5)" data-rate="5" class="rate-btn py-2.5 rounded-xl border-2 border-forest bg-forest-soft text-sm font-bold text-forest transition-all">5 ⭐</button>
+                    </div>
+                    <div class="flex justify-between text-[10px] text-stone-400 mt-1">
+                        <span>Nada útil</span>
+                        <span>Lo usaría en mi casa</span>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-stone-700 uppercase tracking-wide mb-1.5">Tu nombre o perfil (Opcional)</label>
+                    <input type="text" id="feedback-author" placeholder="Ej. Andrea (Huerto en departamento)" class="w-full px-4 py-2.5 rounded-xl bg-cream border border-stone-200 focus:border-forest outline-none text-sm">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-stone-700 uppercase tracking-wide mb-1.5">¿Qué te gustó más o qué mejorarías?</label>
+                    <textarea id="feedback-comment" rows="3" required placeholder="Ej. Me encanta que tenga guía paso a paso porque siempre se me secan las hierbas..." class="w-full px-4 py-2.5 rounded-xl bg-cream border border-stone-200 focus:border-forest outline-none text-sm resize-none"></textarea>
+                </div>
+
+                <button type="submit" class="w-full py-3 rounded-xl bg-forest hover:bg-forest-light text-white font-bold text-sm shadow-soft transition-all">
+                    Guardar Respuesta de Validación
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION (Reemplazo elegante de alert) -->
+    <div id="toast-container" class="fixed top-20 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- LÓGICA DE APLICACIÓN EN JAVASCRIPT -->
+    <script>
+        // ==========================================
+        // 1. ESTADO INICIAL Y DATOS SIMULADOS
+        // ==========================================
+        const initialCrops = [
+            {
+                id: 'crop-1',
+                name: 'Tomates Cherry',
+                species: 'Solanum lycopersicum',
+                category: 'Hortaliza de fruto',
+                emoji: '🍅',
+                moisture: 42,
+                targetMoisture: 70,
+                light: 88,
+                soilHealth: 92,
+                autoMode: true,
+                history: [68, 64, 59, 53, 47, 42],
+                guide: [
+                    { title: 'Riego constante sin encharcar', desc: 'Mantén la humedad entre 65% y 80%. Nuestro sensor activa el goteo automáticamente antes de que la tierra se agriete.' },
+                    { title: 'Luz solar directa', desc: 'Necesita al menos 6 horas de luz al día para producir frutos dulces. Ubicación actual: Óptima.' },
+                    { title: 'Prevención de hongos', desc: 'Al regar directo en la raíz mediante nuestra electroválvula, evitamos mojar las hojas y prevenimos plagas.' }
+                ]
+            },
+            {
+                id: 'crop-2',
+                name: 'Lechuga Hidropónica',
+                species: 'Lactuca sativa',
+                category: 'Hoja verde',
+                emoji: '🥬',
+                moisture: 78,
+                targetMoisture: 75,
+                light: 76,
+                soilHealth: 95,
+                autoMode: true,
+                history: [74, 73, 72, 80, 79, 78],
+                guide: [
+                    { title: 'Humedad fresca permanente', desc: 'Las hojas verdes son 95% agua. El sistema realiza micro-riegos cortos para mantener el sustrato siempre fresco.' },
+                    { title: 'Evita el calor extremo', desc: 'Si la luz supera el 90% al mediodía, considera darle sombra parcial para evitar sabor amargo.' },
+                    { title: 'Cosecha continua', desc: 'Corta las hojas exteriores primero; el centro seguirá creciendo durante semanas.' }
+                ]
+            },
+            {
+                id: 'crop-3',
+                name: 'Albahaca Genovesa',
+                species: 'Ocimum basilicum',
+                category: 'Hierba aromática',
+                emoji: '🌿',
+                moisture: 36,
+                targetMoisture: 65,
+                light: 82,
+                soilHealth: 88,
+                autoMode: false,
+                history: [62, 57, 51, 45, 40, 36],
+                guide: [
+                    { title: 'Sensible a la falta de agua', desc: 'La albahaca decae rápido si baja del 40%. Activa el modo automático para despreocuparte.' },
+                    { title: 'Poda de flores', desc: 'Si ves pequeños capullos blancos en la punta, córtalos con los dedos para que siga dando hojas grandes.' },
+                    { title: 'Cero frustración', desc: 'Ideal para principiantes: crece rápido y responde en menos de 1 hora tras recibir riego.' }
+                ]
+            },
+            {
+                id: 'crop-4',
+                name: 'Pimientos Dulces',
+                species: 'Capsicum annuum',
+                category: 'Hortaliza de fruto',
+                emoji: '🫑',
+                moisture: 69,
+                targetMoisture: 68,
+                light: 90,
+                soilHealth: 94,
+                autoMode: true,
+                history: [60, 58, 72, 71, 70, 69],
+                guide: [
+                    { title: 'Equilibrio hídrico en floración', desc: 'Cambios bruscos de sequía a exceso hacen caer las flores. El sensor mantiene una curva estable.' },
+                    { title: 'Amante del sol', desc: 'Aprovecha el punto más iluminado de tu balcón o patio.' },
+                    { title: 'Soporte del tallo', desc: 'Cuando empiecen a crecer los pimientos, coloca un tutor o varilla suave para sostener el peso.' }
+                ]
+            }
+        ];
+
+        // Cargar desde localStorage o usar datos por defecto
+        let crops = JSON.parse(localStorage.getItem('riegosmart_crops')) || initialCrops;
+        let currentFilter = 'all';
+        let selectedCropId = null;
+        let selectedRating = 5;
+        let wateringIntervals = {};
+
+        // Respuestas de feedback iniciales de ejemplo para la demo
+        const initialFeedbacks = [
+            {
+                author: 'Carlos M. (Validación #1)',
+                rating: 5,
+                comment: 'Me gusta mucho que no sea solo una alarma en el celular, sino que realmente riegue solo y me explique qué hacer si soy principiante.',
+                date: 'Hoy, 10:15 AM'
+            },
+            {
+                author: 'Sofía R. (Validación #2)',
+                rating: 5,
+                comment: 'La interfaz es súper limpia y fácil de entender. El botón de ver la humedad subir en tiempo real da mucha confianza.',
+                date: 'Hoy, 11:40 AM'
+            }
+        ];
+        let feedbacks = JSON.parse(localStorage.getItem('riegosmart_feedbacks')) || initialFeedbacks;
+
+        // ==========================================
+        // 2. FUNCIONES DE UTILIDAD Y ESTADO
+        // ==========================================
+        function saveCrops() {
+            localStorage.setItem('riegosmart_crops', JSON.stringify(crops));
+        }
+
+        function isUrgent(crop) {
+            return crop.moisture < (crop.targetMoisture - 12);
+        }
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const bgClass = type === 'success' ? 'bg-forest text-white' : 'bg-coral text-white';
+            const iconName = type === 'success' ? 'check-circle-2' : 'droplets';
+            
+            toast.className = `${bgClass} px-4 py-3 rounded-2xl shadow-lg flex items-center gap-2.5 text-xs sm:text-sm font-semibold transform transition-all duration-300 translate-x-4 opacity-0 pointer-events-auto max-w-xs sm:max-w-sm`;
+            toast.innerHTML = `
+                <i data-lucide="${iconName}" class="w-4 h-4 shrink-0"></i>
+                <span>${message}</span>
+            `;
+            container.appendChild(toast);
+            lucide.createIcons();
+
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-x-4', 'opacity-0');
+            });
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-x-4');
+                setTimeout(() => toast.remove(), 300);
+            }, 3400);
+        }
+
+        // ==========================================
+        // 3. RENDERIZADO DEL DASHBOARD Y TARJETAS
+        // ==========================================
+        function updateDashboardStats() {
+            const total = crops.length;
+            const urgentCount = crops.filter(c => isUrgent(c)).length;
+            const optimalCount = total - urgentCount;
+
+            document.getElementById('stat-total-crops').textContent = `${total} ${total === 1 ? 'planta' : 'plantas'}`;
+            
+            const urgentEl = document.getElementById('stat-urgent-crops');
+            const urgentIconBg = document.getElementById('stat-urgent-icon-bg');
+            
+            if (urgentCount > 0) {
+                urgentEl.textContent = `${urgentCount} ${urgentCount === 1 ? 'urgente' : 'urgentes'}`;
+                urgentEl.className = 'text-xl font-bold text-coral font-display';
+                urgentIconBg.className = 'w-11 h-11 rounded-2xl bg-coral-light text-coral flex items-center justify-center shrink-0 transition-colors';
+            } else {
+                urgentEl.textContent = 'Todo óptimo';
+                urgentEl.className = 'text-xl font-bold text-forest font-display';
+                urgentIconBg.className = 'w-11 h-11 rounded-2xl bg-forest-soft text-forest flex items-center justify-center shrink-0 transition-colors';
+            }
+
+            // Actualizar contadores de filtros
+            document.getElementById('count-all').textContent = total;
+            document.getElementById('count-urgent').textContent = urgentCount;
+            document.getElementById('count-optimal').textContent = optimalCount;
+        }
+
+        function setFilter(filter) {
+            currentFilter = filter;
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                if (btn.dataset.filter === filter) {
+                    btn.className = 'filter-btn px-4 py-2 rounded-full text-xs sm:text-sm font-semibold bg-forest text-white shadow-sm transition-all whitespace-nowrap flex items-center gap-1.5';
+                } else {
+                    btn.className = 'filter-btn px-4 py-2 rounded-full text-xs sm:text-sm font-semibold bg-white text-stone-600 hover:bg-sand border border-stone-200/80 transition-all whitespace-nowrap flex items-center gap-1.5';
+                }
+            });
+            renderCropsGrid();
+        }
+
+        function renderCropsGrid() {
+            const grid = document.getElementById('crops-grid');
+            updateDashboardStats();
+
+            let filtered = crops;
+            if (currentFilter === 'urgent') {
+                filtered = crops.filter(c => isUrgent(c));
+            } else if (currentFilter === 'optimal') {
+                filtered = crops.filter(c => !isUrgent(c));
+            }
+
+            if (filtered.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-span-full bg-white rounded-3xl p-10 text-center border border-stone-200/70 shadow-card">
+                        <div class="w-14 h-14 rounded-2xl bg-forest-soft text-forest mx-auto flex items-center justify-center mb-3">
+                            <i data-lucide="check-circle-2" class="w-7 h-7"></i>
+                        </div>
+                        <h4 class="text-lg font-bold text-forest mb-1">No hay cultivos en esta categoría</h4>
+                        <p class="text-sm text-stone-500 mb-4">¡Excelente trabajo! Todos tus cultivos están bien atendidos.</p>
+                        <button onclick="setFilter('all')" class="px-4 py-2 rounded-xl bg-forest text-white text-xs font-semibold">Ver todos los cultivos</button>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            grid.innerHTML = filtered.map(crop => {
+                const urgent = isUrgent(crop);
+                const isWatering = Boolean(wateringIntervals[crop.id]);
+                
+                // Estilos dinámicos según urgencia
+                const badgeHTML = urgent
+                    ? `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-coral-light text-coral text-[11px] font-bold uppercase tracking-wide">
+                         <span class="w-1.5 h-1.5 rounded-full bg-coral animate-ping"></span>
+                         Riego urgente
+                       </span>`
+                    : `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-forest-soft text-forest text-[11px] font-bold uppercase tracking-wide">
+                         <i data-lucide="check" class="w-3 h-3"></i>
+                         Humedad óptima
+                       </span>`;
+
+                const barColor = urgent ? 'bg-coral' : 'bg-forest';
+                const cardBorder = urgent ? 'border-coral/30' : 'border-stone-200/70';
+
+                // Si el filtro activo es 'guide', destacamos el tip rápido de guía digital en la tarjeta
+                const guidePreviewHTML = currentFilter === 'guide'
+                    ? `<div class="mt-3 p-3 rounded-2xl bg-forest-soft/70 border border-forest/10 text-xs text-stone-700">
+                         <span class="font-bold text-forest block mb-0.5">💡 Consejo Guía Digital:</span>
+                         ${crop.guide[0].desc}
+                       </div>`
+                    : '';
+
+                return `
+                    <article onclick="openCropDetailModal('${crop.id}')" class="group bg-white rounded-3xl p-5 border ${cardBorder} shadow-card hover:shadow-soft transition-all cursor-pointer relative overflow-hidden flex flex-col justify-between">
+                        <div>
+                            <!-- Top Row: Emoji, Título y Estado -->
+                            <div class="flex items-start justify-between gap-3 mb-4">
+                                <div class="flex items-center gap-3.5">
+                                    <div class="w-13 h-13 w-12 h-12 rounded-2xl bg-sand flex items-center justify-center text-2xl shrink-0 group-hover:scale-105 transition-transform">
+                                        ${crop.emoji}
+                                    </div>
+                                    <div>
+                                        <h4 class="font-display font-bold text-base sm:text-lg text-stone-900 group-hover:text-forest transition-colors leading-snug">
+                                            ${crop.name}
+                                        </h4>
+                                        <p class="text-xs text-stone-500">${crop.category} • Ideal ${crop.targetMoisture}%</p>
+                                    </div>
+                                </div>
+                                ${badgeHTML}
+                            </div>
+
+                            <!-- Barra de Humedad en Tiempo Real -->
+                            <div class="mb-4">
+                                <div class="flex items-baseline justify-between mb-1.5">
+                                    <span class="text-xs font-semibold text-stone-600 flex items-center gap-1.5">
+                                        <i data-lucide="droplets" class="w-3.5 h-3.5 ${urgent ? 'text-coral' : 'text-forest'}"></i>
+                                        Humedad del suelo
+                                    </span>
+                                    <span class="text-base font-extrabold font-display ${urgent ? 'text-coral' : 'text-forest'}">
+                                        ${crop.moisture}%
+                                    </span>
+                                </div>
+                                <div class="w-full h-2.5 bg-sand rounded-full overflow-hidden">
+                                    <div class="${barColor} h-full rounded-full transition-all duration-300" style="width: ${crop.moisture}%"></div>
+                                </div>
+                            </div>
+
+                            <!-- Mini Métricas (Luz y Suelo) -->
+                            <div class="grid grid-cols-2 gap-2.5 text-xs mb-4">
+                                <div class="bg-cream px-3 py-2 rounded-xl flex items-center justify-between border border-stone-100">
+                                    <span class="text-stone-500 flex items-center gap-1.5">
+                                        <i data-lucide="sun" class="w-3.5 h-3.5 text-amber-500"></i>
+                                        Luz
+                                    </span>
+                                    <span class="font-bold text-stone-800">${crop.light}%</span>
+                                </div>
+                                <div class="bg-cream px-3 py-2 rounded-xl flex items-center justify-between border border-stone-100">
+                                    <span class="text-stone-500 flex items-center gap-1.5">
+                                        <i data-lucide="cpu" class="w-3.5 h-3.5 text-sage"></i>
+                                        Modo Auto
+                                    </span>
+                                    <span class="font-bold ${crop.autoMode ? 'text-forest' : 'text-stone-400'}">${crop.autoMode ? 'ON' : 'OFF'}</span>
+                                </div>
+                            </div>
+
+                            ${guidePreviewHTML}
+                        </div>
+
+                        <!-- Acciones Inferiores -->
+                        <div class="pt-3 border-t border-stone-100 flex items-center justify-between gap-2">
+                            <span class="text-xs font-semibold text-stone-400 group-hover:text-forest transition-colors flex items-center gap-1">
+                                Ver guía y gráfica
+                                <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+                            </span>
+
+                            <button onclick="event.stopPropagation(); triggerWatering('${crop.id}')" ${isWatering ? 'disabled' : ''} class="px-4 py-2 rounded-xl font-bold text-xs transition-all flex items-center gap-1.5 shadow-sm ${
+                                isWatering
+                                    ? 'bg-sky-500 text-white watering-active cursor-wait'
+                                    : urgent
+                                        ? 'bg-coral hover:bg-coral-dark text-white'
+                                        : 'bg-forest-soft hover:bg-forest text-forest hover:text-white'
+                            }">
+                                <i data-lucide="droplets" class="w-3.5 h-3.5"></i>
+                                <span>${isWatering ? 'Regando...' : 'Regar ahora'}</span>
+                            </button>
+                        </div>
+                    </article>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+        }
+
+        // ==========================================
+        // 4. SIMULACIÓN DE ELECTROVÁLVULA / RIEGO
+        // ==========================================
+        function triggerWatering(cropId) {
+            const crop = crops.find(c => c.id === cropId);
+            if (!crop || wateringIntervals[cropId]) return;
+
+            const targetGoal = Math.min(92, Math.max(crop.targetMoisture + 6, crop.moisture + 25));
+            showToast(`Electroválvula abierta: regando ${crop.name}...`, 'water');
+
+            wateringIntervals[cropId] = setInterval(() => {
+                if (crop.moisture < targetGoal) {
+                    crop.moisture = Math.min(targetGoal, crop.moisture + 4);
+                    // Actualizar último punto de la gráfica en vivo
+                    crop.history[crop.history.length - 1] = crop.moisture;
+                    
+                    renderCropsGrid();
+                    if (selectedCropId === cropId) {
+                        updateDetailModalUI(crop);
+                    }
+                } else {
+                    clearInterval(wateringIntervals[cropId]);
+                    delete wateringIntervals[cropId];
+                    saveCrops();
+                    renderCropsGrid();
+                    if (selectedCropId === cropId) {
+                        updateDetailModalUI(crop);
+                    }
+                    showToast(`¡Riego completado! ${crop.name} alcanzó ${crop.moisture}% de humedad.`, 'success');
+                }
+            }, 220);
+
+            renderCropsGrid();
+            if (selectedCropId === cropId) {
+                updateDetailModalUI(crop);
+            }
+        }
+
+        function triggerWateringFromModal() {
+            if (selectedCropId) {
+                triggerWatering(selectedCropId);
+            }
+        }
+
+        // Simula el paso del tiempo / calor para pruebas de validación
+        function simulateDrySoil() {
+            crops.forEach(crop => {
+                if (!wateringIntervals[crop.id]) {
+                    crop.moisture = Math.max(25, crop.moisture - 15);
+                    crop.history.shift();
+                    crop.history.push(crop.moisture);
+                }
+            });
+            saveCrops();
+            renderCropsGrid();
+            showToast('Se simuló un día soleado (-15% humedad en sustrato)', 'water');
+        }
+
+        // ==========================================
+        // 5. MODAL DE DETALLE Y GUÍA DIGITAL
+        // ==========================================
+        function openCropDetailModal(cropId) {
+            selectedCropId = cropId;
+            const crop = crops.find(c => c.id === cropId);
+            if (!crop) return;
+
+            switchDetailTab('live');
+            updateDetailModalUI(crop);
+
+            const modal = document.getElementById('crop-detail-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            lucide.createIcons();
+        }
+
+        function closeCropDetailModal() {
+            selectedCropId = null;
+            const modal = document.getElementById('crop-detail-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function switchDetailTab(tab) {
+            const liveTab = document.getElementById('detail-tab-live');
+            const guideTab = document.getElementById('detail-tab-guide');
+            const btnLive = document.getElementById('tab-btn-live');
+            const btnGuide = document.getElementById('tab-btn-guide');
+
+            if (tab === 'live') {
+                liveTab.classList.remove('hidden');
+                guideTab.classList.add('hidden');
+                btnLive.className = 'pb-3 text-sm font-bold border-b-2 border-forest text-forest transition-all';
+                btnGuide.className = 'pb-3 text-sm font-semibold border-b-2 border-transparent text-stone-500 hover:text-forest transition-all flex items-center gap-1.5';
+            } else {
+                liveTab.classList.add('hidden');
+                guideTab.classList.remove('hidden');
+                btnGuide.className = 'pb-3 text-sm font-bold border-b-2 border-forest text-forest transition-all flex items-center gap-1.5';
+                btnLive.className = 'pb-3 text-sm font-semibold border-b-2 border-transparent text-stone-500 hover:text-forest transition-all';
+            }
+        }
+
+        function updateDetailModalUI(crop) {
+            const urgent = isUrgent(crop);
+            const isWatering = Boolean(wateringIntervals[crop.id]);
+
+            document.getElementById('detail-emoji').textContent = crop.emoji;
+            document.getElementById('detail-name').textContent = crop.name;
+            document.getElementById('detail-species').textContent = `${crop.species} • ${crop.category}`;
+
+            // Banner de estado estilo FYTA
+            const banner = document.getElementById('detail-status-banner');
+            const iconBox = document.getElementById('detail-status-icon');
+            const badge = document.getElementById('detail-badge');
+            const msg = document.getElementById('detail-message');
+
+            if (urgent) {
+                banner.className = 'p-4 rounded-2xl bg-coral-light/85 border border-coral/25 flex items-center gap-4';
+                iconBox.className = 'w-12 h-12 rounded-2xl bg-coral text-white flex items-center justify-center shrink-0';
+                badge.className = 'text-[11px] font-bold uppercase tracking-wider text-coral';
+                badge.textContent = 'Atención recomendada';
+                msg.textContent = `${crop.name} está saludable, pero necesita agua pronto para alcanzar su rango ideal (${crop.targetMoisture}%).`;
+            } else {
+                banner.className = 'p-4 rounded-2xl bg-forest-soft border border-forest/20 flex items-center gap-4';
+                iconBox.className = 'w-12 h-12 rounded-2xl bg-forest text-white flex items-center justify-center shrink-0';
+                badge.className = 'text-[11px] font-bold uppercase tracking-wider text-forest';
+                badge.textContent = 'Estado Óptimo';
+                msg.textContent = `¡Excelente! ${crop.name} tiene la humedad perfecta y está creciendo sin estrés hídrico.`;
+            }
+
+            // Indicadores
+            document.getElementById('detail-moisture-val').textContent = `${crop.moisture}%`;
+            document.getElementById('detail-target-val').textContent = `Ideal: ${crop.targetMoisture - 5}–${crop.targetMoisture + 10}%`;
+            document.getElementById('detail-light-val').textContent = `${crop.light}%`;
+            document.getElementById('detail-soil-val').textContent = `${crop.soilHealth}%`;
+            document.getElementById('detail-chart-current').textContent = `${crop.moisture}%`;
+
+            // Renderizar Gráfica SVG suave
+            renderMoistureSVG(crop.history, urgent);
+
+            // Toggle Modo Automático
+            const toggleBtn = document.getElementById('auto-mode-toggle');
+            const toggleKnob = document.getElementById('auto-mode-knob');
+            const toggleDesc = document.getElementById('auto-mode-desc');
+
+            if (crop.autoMode) {
+                toggleBtn.className = 'w-12 h-7 rounded-full bg-forest p-1 transition-colors flex items-center cursor-pointer shrink-0';
+                toggleKnob.className = 'w-5 h-5 rounded-full bg-white shadow transform translate-x-5 transition-transform';
+                toggleDesc.textContent = `Activado: regará solo al bajar de ${crop.targetMoisture - 12}%`;
+            } else {
+                toggleBtn.className = 'w-12 h-7 rounded-full bg-stone-300 p-1 transition-colors flex items-center cursor-pointer shrink-0';
+                toggleKnob.className = 'w-5 h-5 rounded-full bg-white shadow transform translate-x-0 transition-transform';
+                toggleDesc.textContent = 'Pausado: solo recibirás alertas de riego';
+            }
+
+            // Botón de riego en modal
+            const waterBtn = document.getElementById('detail-water-btn');
+            if (isWatering) {
+                waterBtn.disabled = true;
+                waterBtn.className = 'w-full sm:w-auto px-5 py-3 rounded-2xl bg-sky-500 text-white font-bold text-sm shadow-soft transition-all flex items-center justify-center gap-2 watering-active';
+                waterBtn.innerHTML = `<i data-lucide="droplets" class="w-4 h-4"></i><span>Regando sustrato...</span>`;
+            } else {
+                waterBtn.disabled = false;
+                waterBtn.className = 'w-full sm:w-auto px-5 py-3 rounded-2xl bg-forest hover:bg-forest-light text-white font-bold text-sm shadow-soft transition-all flex items-center justify-center gap-2';
+                waterBtn.innerHTML = `<i data-lucide="droplets" class="w-4 h-4"></i><span>Activar Riego Ahora</span>`;
+            }
+
+            // Renderizar pasos de Guía Digital
+            const guideContainer = document.getElementById('guide-steps-container');
+            guideContainer.innerHTML = crop.guide.map((step, index) => `
+                <div class="bg-white p-4 rounded-2xl border border-stone-200/70 shadow-sm flex items-start gap-3.5">
+                    <span class="w-7 h-7 rounded-full bg-forest text-white font-display font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
+                        ${index + 1}
+                    </span>
+                    <div>
+                        <h5 class="text-sm font-bold text-stone-900">${step.title}</h5>
+                        <p class="text-xs text-stone-600 mt-1 leading-relaxed">${step.desc}</p>
+                    </div>
+                </div>
+            `).join('');
+
+            lucide.createIcons();
+        }
+
+        function renderMoistureSVG(history, urgent) {
+            const svg = document.getElementById('moisture-chart-svg');
+            const strokeColor = urgent ? '#E06D53' : '#114B3A';
+            const fillColor = urgent ? 'rgba(224, 109, 83, 0.15)' : 'rgba(17, 75, 58, 0.14)';
+
+            const width = 320;
+            const height = 85;
+            const stepX = width / (history.length - 1);
+
+            const points = history.map((val, i) => {
+                const x = i * stepX;
+                const y = height - ((val / 100) * (height - 15)) - 5;
+                return { x, y };
+            });
+
+            const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
+            const areaPath = `${linePath} L ${width} ${height} L 0 ${height} Z`;
+
+            svg.innerHTML = `
+                <line x1="0" y1="20" x2="320" y2="20" stroke="#E7E5E4" stroke-dasharray="4 4" stroke-width="1"/>
+                <line x1="0" y1="50" x2="320" y2="50" stroke="#E7E5E4" stroke-dasharray="4 4" stroke-width="1"/>
+                <path d="${areaPath}" fill="${fillColor}" />
+                <path d="${linePath}" fill="none" stroke="${strokeColor}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+                ${points.map((p, idx) => `
+                    <circle cx="${p.x}" cy="${p.y}" r="${idx === points.length - 1 ? 5 : 3}" fill="#FFFFFF" stroke="${strokeColor}" stroke-width="2.5" />
+                `).join('')}
+            `;
+        }
+
+        function toggleAutoMode() {
+            const crop = crops.find(c => c.id === selectedCropId);
+            if (!crop) return;
+            crop.autoMode = !crop.autoMode;
+            saveCrops();
+            updateDetailModalUI(crop);
+            renderCropsGrid();
+            showToast(crop.autoMode ? `Modo automático activado para ${crop.name}` : `Modo automático pausado`, 'success');
+        }
+
+        // ==========================================
+        // 6. AGREGAR NUEVO CULTIVO (MODAL)
+        // ==========================================
+        function openAddCropModal() {
+            document.getElementById('add-crop-modal').classList.remove('hidden');
+            document.getElementById('add-crop-modal').classList.add('flex');
+        }
+
+        function closeAddCropModal() {
+            document.getElementById('add-crop-modal').classList.add('hidden');
+            document.getElementById('add-crop-modal').classList.remove('flex');
+            document.getElementById('add-crop-form').reset();
+            document.getElementById('target-slider-val').textContent = '70%';
+        }
+
+        function handleAddCrop(e) {
+            e.preventDefault();
+            const name = document.getElementById('new-crop-name').value.trim();
+            const [category, emoji] = document.getElementById('new-crop-type').value.split('|');
+            const targetMoisture = parseInt(document.getElementById('new-crop-target').value, 10);
+            const initialState = document.querySelector('input[name="initialState"]:checked').value;
+
+            const startMoisture = initialState === 'urgent' ? Math.max(30, targetMoisture - 28) : targetMoisture + 4;
+
+            const newCrop = {
+                id: 'crop-' + Date.now(),
+                name,
+                species: 'Cultivo personalizado',
+                category,
+                emoji,
+                moisture: startMoisture,
+                targetMoisture,
+                light: 85,
+                soilHealth: 95,
+                autoMode: true,
+                history: [startMoisture + 8, startMoisture + 6, startMoisture + 4, startMoisture + 2, startMoisture + 1, startMoisture],
+                guide: [
+                    { title: `Humedad ideal configurada al ${targetMoisture}%`, desc: `El sensor capacitivo monitoreará constantemente la raíz de ${name} para activar el riego en el momento exacto.` },
+                    { title: 'Adaptación inicial (Primeros 7 días)', desc: 'Observa el comportamiento de las hojas; nuestro sistema evitará cualquier estrés por falta de agua.' },
+                    { title: 'Cero frustración garantizada', desc: 'Si tienes dudas, revisa esta ficha en cualquier momento para ver el historial de riego.' }
+                ]
+            };
+
+            crops.unshift(newCrop);
+            saveCrops();
+            setFilter('all');
+            closeAddCropModal();
+            showToast(`¡${name} vinculado correctamente al sistema!`, 'success');
+        }
+
+        // ==========================================
+        // 7. NAVEGACIÓN ENTRE VISTAS Y FEEDBACK
+        // ==========================================
+        function switchMainView(view) {
+            const dashView = document.getElementById('view-dashboard');
+            const compView = document.getElementById('view-comparison');
+            const navDash = document.getElementById('nav-dashboard');
+            const navComp = document.getElementById('nav-comparison');
+
+            if (view === 'dashboard') {
+                dashView.classList.remove('hidden');
+                compView.classList.add('hidden');
+                navDash.className = 'px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all bg-white text-forest shadow-sm flex items-center gap-1.5';
+                navComp.className = 'px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-stone-600 hover:text-forest transition-all flex items-center gap-1.5';
+            } else {
+                dashView.classList.add('hidden');
+                compView.classList.remove('hidden');
+                navComp.className = 'px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all bg-white text-forest shadow-sm flex items-center gap-1.5';
+                navDash.className = 'px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-stone-600 hover:text-forest transition-all flex items-center gap-1.5';
+                renderFeedbackList();
+            }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function openFeedbackModal() {
+            document.getElementById('feedback-modal').classList.remove('hidden');
+            document.getElementById('feedback-modal').classList.add('flex');
+        }
+
+        function closeFeedbackModal() {
+            document.getElementById('feedback-modal').classList.add('hidden');
+            document.getElementById('feedback-modal').classList.remove('flex');
+        }
+
+        function selectRating(rate) {
+            selectedRating = rate;
+            document.querySelectorAll('.rate-btn').forEach(btn => {
+                const r = parseInt(btn.dataset.rate, 10);
+                if (r === rate) {
+                    btn.className = 'rate-btn py-2.5 rounded-xl border-2 border-forest bg-forest-soft text-sm font-bold text-forest transition-all';
+                    btn.textContent = `${r} ⭐`;
+                } else {
+                    btn.className = 'rate-btn py-2.5 rounded-xl border border-stone-200 text-sm font-bold text-stone-600 hover:border-forest transition-all';
+                    btn.textContent = r;
+                }
+            });
+        }
+
+        function handleFeedbackSubmit(e) {
+            e.preventDefault();
+            const authorInput = document.getElementById('feedback-author').value.trim();
+            const comment = document.getElementById('feedback-comment').value.trim();
+
+            const newEntry = {
+                author: authorInput || `Usuario de Prueba #${feedbacks.length + 1}`,
+                rating: selectedRating,
+                comment,
+                date: 'Recién registrado'
+            };
+
+            feedbacks.unshift(newEntry);
+            localStorage.setItem('riegosmart_feedbacks', JSON.stringify(feedbacks));
+
+            document.getElementById('feedback-author').value = '';
+            document.getElementById('feedback-comment').value = '';
+            selectRating(5);
+            closeFeedbackModal();
+            renderFeedbackList();
+            showToast('¡Gracias! Tu feedback de validación ha sido guardado.', 'success');
+        }
+
+        function renderFeedbackList() {
+            const list = document.getElementById('feedback-list');
+            if (!list) return;
+
+            list.innerHTML = feedbacks.map(item => `
+                <div class="bg-white p-4 rounded-2xl border border-stone-200/70 shadow-sm">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="font-bold text-xs sm:text-sm text-forest">${item.author}</span>
+                        <span class="text-xs font-bold px-2 py-0.5 rounded-lg bg-amber-50 text-amber-600">${'⭐'.repeat(item.rating)}</span>
+                    </div>
+                    <p class="text-xs sm:text-sm text-stone-600 leading-relaxed mb-2">"${item.comment}"</p>
+                    <span class="text-[10px] text-stone-400 font-medium">${item.date}</span>
+                </div>
+            `).join('');
+        }
+
+        // Inicializar aplicación
+        document.addEventListener('DOMContentLoaded', () => {
+            renderCropsGrid();
+            renderFeedbackList();
+            lucide.createIcons();
+        });
+    </script>
+</body>
+</html>
